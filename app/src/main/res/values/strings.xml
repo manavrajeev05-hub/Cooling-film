@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">CoolingFilmMonitor</string>
+    <string name="temp_label">Temperature: 00.0 °C</string>
+</resources>
