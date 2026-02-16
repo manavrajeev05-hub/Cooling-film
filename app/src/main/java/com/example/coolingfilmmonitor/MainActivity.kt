@@ -2,14 +2,21 @@ package com.example.coolingfilmmonitor
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.animation.ValueAnimator
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -24,30 +31,59 @@ import com.google.android.material.progressindicator.CircularProgressIndicator
 import kotlin.random.Random
 
 class MainActivity : AppCompatActivity() {
-    private var bluetoothAdapter: android.bluetooth.BluetoothAdapter? = null
-    private val requestEnableBt = 1
+
+    // UI
+    private lateinit var tempGauge: CircularProgressIndicator
+    private lateinit var tvTemperature: TextView
+    private lateinit var tvCoolingStatus: TextView
+    private lateinit var heroCard: MaterialCardView
+    private lateinit var tvConnectionStatus: TextView
+    private lateinit var lineChart: LineChart
+    private lateinit var gridTile2: MaterialCardView
+    private lateinit var gridText2: TextView
+    private lateinit var btnConnect: Button
+
+    // Bluetooth
+    private var bluetoothAdapter: BluetoothAdapter? = null
     private var isScanning = false
-    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private val SCAN_PERIOD: Long = 10000
-    private val requestBluetoothPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val allGranted = permissions.entries.all { it.value }
-        if (allGranted) {
-            // This is where you will trigger the sensor search
-            Toast.makeText(this, "Permissions Granted!", Toast.LENGTH_SHORT).show()
-            startScanning()
-        } else {
-            Toast.makeText(this, "Permissions Denied", Toast.LENGTH_SHORT).show()
+
+    // Temperature Logic
+    private var currentTemp = 25
+    private var minTemp = Int.MAX_VALUE
+    private var maxTemp = Int.MIN_VALUE
+    private val tempUpdateInterval: Long = 3000
+
+    // Chart
+    private val temperatureEntries = ArrayList<Entry>()
+    private var chartTime = 0f
+
+    private val handler = Handler(Looper.getMainLooper())
+
+    // Permission launcher
+    private val requestBluetoothPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            val allGranted = permissions.entries.all { it.value }
+            if (allGranted) {
+                startScanning()
+            } else {
+                Toast.makeText(this, "Permissions Denied", Toast.LENGTH_SHORT).show()
+            }
         }
-    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Bluetooth init
+        val bluetoothManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
+        bluetoothAdapter = bluetoothManager.adapter
+
+        // Toolbar
         val toolbar = findViewById<MaterialToolbar>(R.id.topAppBar)
         setSupportActionBar(toolbar)
 
+        // Bind views
         tempGauge = findViewById(R.id.tempGauge)
         tvTemperature = findViewById(R.id.tvTemperature)
         tvCoolingStatus = findViewById(R.id.tvCoolingStatus)
@@ -56,17 +92,21 @@ class MainActivity : AppCompatActivity() {
         lineChart = findViewById(R.id.lineChart)
         gridTile2 = findViewById(R.id.gridTile2)
         gridText2 = findViewById(R.id.gridText2)
+        btnConnect = findViewById(R.id.btnConnect)
 
         setupLineChart()
 
-        gridTile2.setOnClickListener {
-            gridText2.text = getString(R.string.data_logged, currentTemp)
-        }
-
-        heroCard.setOnClickListener {
-            if (minTemp != Int.MAX_VALUE && maxTemp != Int.MIN_VALUE) {
-                tvCoolingStatus.text =
-                    getString(R.string.min_max, minTemp, maxTemp)
+        btnConnect.setOnClickListener {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                requestBluetoothPermissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.BLUETOOTH_SCAN,
+                        Manifest.permission.BLUETOOTH_CONNECT,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    )
+                )
+            } else {
+                startScanning()
             }
         }
 
@@ -89,18 +129,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-
-        if (SettingsActivity.resetRequested) {
-            minTemp = Int.MAX_VALUE
-            maxTemp = Int.MIN_VALUE
-            temperatureEntries.clear()
-            lineChart.clear()
-            SettingsActivity.resetRequested = false
-        }
-    }
-
+    // Temperature updater
     private val tempUpdater = object : Runnable {
         override fun run() {
 
@@ -112,92 +141,29 @@ class MainActivity : AppCompatActivity() {
             animateTemperature(currentTemp, newTemp)
             currentTemp = newTemp
 
-            if (SettingsActivity.alertEnabled) {
-
-                if (newTemp >= SettingsActivity.alertThreshold) {
-
-                    tvCoolingStatus.text = getString(R.string.heating)
-
-                    if (!alertAlreadyShown) {
-                        showInAppAlert()
-                        alertAlreadyShown = true
-                    }
-
-                } else {
-                    tvCoolingStatus.text = getString(R.string.cooling_stable)
-                    alertAlreadyShown = false
-                }
-
-            } else {
-                tvCoolingStatus.text = getString(R.string.monitoring)
-            }
+            tvCoolingStatus.text = "Monitoring..."
 
             handler.postDelayed(this, tempUpdateInterval)
         }
     }
 
-
-    private fun showInAppAlert() {
-        com.google.android.material.snackbar.Snackbar
-            .make(
-                findViewById(android.R.id.content),
-                "⚠ Temperature exceeded threshold!",
-                com.google.android.material.snackbar.Snackbar.LENGTH_LONG
-            )
-            .setBackgroundTint(ContextCompat.getColor(this, R.color.alert_red))
-            .setTextColor(ContextCompat.getColor(this, android.R.color.white))
-            .show()
-    }
-
-
     private fun animateTemperature(from: Int, to: Int) {
 
-        val displayTemp = if (SettingsActivity.useFahrenheit) {
-            (to * 9 / 5) + 32
-        } else {
-            to
-        }
-
-        val unit = if (SettingsActivity.useFahrenheit) "°F" else "°C"
-
-        val progressAnimator = ValueAnimator.ofInt(from, to).apply {
-            duration = 1500
+        val animator = ValueAnimator.ofInt(from, to).apply {
+            duration = 1000
             addUpdateListener {
                 tempGauge.progress = it.animatedValue as Int
             }
         }
-        progressAnimator.start()
+        animator.start()
 
-        val colorAnimator = ValueAnimator.ofObject(
-            ArgbEvaluator(),
-            getColorForTemp(from),
-            getColorForTemp(to)
-        ).apply {
-            duration = 1500
-            addUpdateListener {
-                val color = it.animatedValue as Int
-                tempGauge.setIndicatorColor(color)
-                tvTemperature.setShadowLayer(8f, 0f, 0f, color)
-            }
-        }
-        colorAnimator.start()
-
-        tvTemperature.text = "$displayTemp$unit"
+        tvTemperature.text = "$to°C"
     }
 
-    private fun getColorForTemp(temp: Int): Int {
-        return when {
-            temp < 25 ->
-                ContextCompat.getColor(this, R.color.status_blue)
-            temp in 25..30 ->
-                ContextCompat.getColor(this, R.color.warning_yellow)
-            else ->
-                ContextCompat.getColor(this, R.color.alert_red)
-        }
-    }
-
+    // Chart updater
     private val chartUpdater = object : Runnable {
         override fun run() {
+
             val newValue = Random.nextInt(20, 35).toFloat()
             temperatureEntries.add(Entry(chartTime, newValue))
             chartTime += 1f
@@ -210,34 +176,12 @@ class MainActivity : AppCompatActivity() {
                 lineWidth = 2f
                 setDrawCircles(false)
                 color = ContextCompat.getColor(this@MainActivity, R.color.status_blue)
-                valueTextColor = ContextCompat.getColor(
-                    this@MainActivity,
-                    android.R.color.white
-                )
             }
 
             lineChart.data = LineData(dataSet)
-
-            lineChart.legend.textColor =
-                ContextCompat.getColor(this@MainActivity, android.R.color.white)
-
             lineChart.invalidate()
 
-// TODO: When sensor arrives, add the scan and data reception logic here
-        val btnConnect = findViewById<android.widget.Button>(R.id.btnConnect)
-        btnConnect.setOnClickListener {
-            // 1. Check if we are on Android 12 or higher (API 31+)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                // 2. Launch the permission pop-up you created at Line 20
-                requestBluetoothPermissionLauncher.launch(arrayOf(
-                    Manifest.permission.BLUETOOTH_SCAN,
-                    Manifest.permission.BLUETOOTH_CONNECT,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ))
-            } else {
-                // 3. For older phones, just try to start the connection
-                startScanning()
-            }
+            handler.postDelayed(this, 3000)
         }
     }
 
@@ -245,39 +189,21 @@ class MainActivity : AppCompatActivity() {
         lineChart.apply {
             description.isEnabled = false
             setTouchEnabled(false)
-
-            legend.textColor =
-                ContextCompat.getColor(this@MainActivity, android.R.color.white)
-
             xAxis.position = XAxis.XAxisPosition.BOTTOM
-            xAxis.textColor =
-                ContextCompat.getColor(this@MainActivity, android.R.color.white)
-
-            axisLeft.textColor =
-                ContextCompat.getColor(this@MainActivity, android.R.color.white)
-
             axisRight.isEnabled = false
             axisLeft.axisMinimum = 0f
             axisLeft.axisMaximum = 40f
         }
     }
-    @SuppressLint("MissingPermission")
-    override fun onPause() {
-        super.onPause()
-        if (isScanning) {
-            bluetoothAdapter?.bluetoothLeScanner?.stopScan(leScanCallback)
-            isScanning = false
-        }
-    }
+
+    // BLE SCANNING
+
     @SuppressLint("MissingPermission")
     private fun startScanning() {
-        val scanner = bluetoothAdapter?.bluetoothLeScanner
-        if (scanner == null) {
-            Toast.makeText(this, "Scanner not available", Toast.LENGTH_SHORT).show()
-            return
-        }
+        val scanner = bluetoothAdapter?.bluetoothLeScanner ?: return
 
         if (!isScanning) {
+
             handler.postDelayed({
                 isScanning = false
                 scanner.stopScan(leScanCallback)
@@ -290,14 +216,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private val leScanCallback: android.bluetooth.le.ScanCallback = object : android.bluetooth.le.ScanCallback() {
+    private val leScanCallback = object : ScanCallback() {
+
         @SuppressLint("MissingPermission")
-        override fun onScanResult(callbackType: Int, @SuppressLint("MissingPermission") result: android.bluetooth.le.ScanResult) {
-            val deviceName: String? = result.device.name
-            if (deviceName != null && deviceName.contains("CoolingFilm")) {
-                Toast.makeText(this@MainActivity, "Sensor Found: $deviceName", Toast.LENGTH_SHORT).show()
+        override fun onScanResult(callbackType: Int, result: ScanResult) {
+
+            val device = result.device
+            val deviceName = device.name ?: return
+
+            if (deviceName.contains("CoolingFilm")) {
+                Toast.makeText(
+                    this@MainActivity,
+                    "Sensor Found: $deviceName",
+                    Toast.LENGTH_SHORT
+                ).show()
+
                 isScanning = false
-                bluetoothAdapter?.bluetoothLeScanner?.stopScan(leScanCallback)
+                bluetoothAdapter?.bluetoothLeScanner?.stopScan(this)
             }
         }
     }
