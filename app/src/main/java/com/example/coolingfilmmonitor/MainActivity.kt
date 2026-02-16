@@ -1,17 +1,13 @@
 package com.example.coolingfilmmonitor
 
-import android.animation.ArgbEvaluator
-import android.animation.ObjectAnimator
-import android.animation.ValueAnimator
 import android.content.Intent
-import android.graphics.Color
+import android.view.Menu
+import android.animation.ArgbEvaluator
+import android.animation.ValueAnimator
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.Menu
 import android.view.MenuItem
-import android.view.View
-import android.view.animation.LinearInterpolator
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -32,13 +28,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvCoolingStatus: TextView
     private lateinit var heroCard: MaterialCardView
     private lateinit var tvConnectionStatus: TextView
-    private lateinit var statusDot: View
     private lateinit var lineChart: LineChart
     private lateinit var gridTile2: MaterialCardView
     private lateinit var gridText2: TextView
 
     private var alertAlreadyShown = false
-    private var scanningAnimator: ObjectAnimator? = null
 
     private val handler = Handler(Looper.getMainLooper())
     private val tempUpdateInterval = 2000L
@@ -62,7 +56,6 @@ class MainActivity : AppCompatActivity() {
         tvCoolingStatus = findViewById(R.id.tvCoolingStatus)
         heroCard = findViewById(R.id.heroCard)
         tvConnectionStatus = findViewById(R.id.tvConnectionStatus)
-        statusDot = findViewById(R.id.statusDot)
         lineChart = findViewById(R.id.lineChart)
         gridTile2 = findViewById(R.id.gridTile2)
         gridText2 = findViewById(R.id.gridText2)
@@ -80,75 +73,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Default state
-        updateConnectionStatus(false)
-
         handler.post(tempUpdater)
         handler.post(chartUpdater)
     }
-
-    /* =======================================================
-       COMMAND CENTER
-     ======================================================= */
-
-    fun updateDashboard(temp: String, status: String, dotDrawable: Int) {
-        tvTemperature.text = temp
-        tvConnectionStatus.text = status
-        statusDot.setBackgroundResource(dotDrawable)
-    }
-
-    /* =======================================================
-       BLUETOOTH BRIDGE
-     ======================================================= */
-
-    fun updateConnectionStatus(isConnected: Boolean) {
-
-        stopScanningAnimation()
-
-        if (isConnected) {
-            updateDashboard(
-                tvTemperature.text.toString(),
-                "Connected",
-                R.drawable.green_dot
-            )
-        } else {
-            updateDashboard(
-                tvTemperature.text.toString(),
-                "Disconnected",
-                R.drawable.red_dot
-            )
-        }
-    }
-
-    fun showScanningState() {
-
-        updateDashboard(
-            tvTemperature.text.toString(),
-            "Scanning...",
-            R.drawable.blue_dot
-        )
-
-        startScanningAnimation()
-    }
-
-    private fun startScanningAnimation() {
-        scanningAnimator = ObjectAnimator.ofFloat(statusDot, "alpha", 0.3f, 1f).apply {
-            duration = 700
-            repeatMode = ValueAnimator.REVERSE
-            repeatCount = ValueAnimator.INFINITE
-            interpolator = LinearInterpolator()
-            start()
-        }
-    }
-
-    private fun stopScanningAnimation() {
-        scanningAnimator?.cancel()
-        statusDot.alpha = 1f
-    }
-
-    /* =======================================================
-       MENU
-     ======================================================= */
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.top_menu, menu)
@@ -176,10 +103,6 @@ class MainActivity : AppCompatActivity() {
             SettingsActivity.resetRequested = false
         }
     }
-
-    /* =======================================================
-       TEMPERATURE LOGIC (UNCHANGED)
-     ======================================================= */
 
     private val tempUpdater = object : Runnable {
         override fun run() {
@@ -216,6 +139,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
     private fun showInAppAlert() {
         com.google.android.material.snackbar.Snackbar
             .make(
@@ -228,6 +152,7 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+
     private fun animateTemperature(from: Int, to: Int) {
 
         val displayTemp = if (SettingsActivity.useFahrenheit) {
@@ -238,15 +163,15 @@ class MainActivity : AppCompatActivity() {
 
         val unit = if (SettingsActivity.useFahrenheit) "°F" else "°C"
 
-        ValueAnimator.ofInt(from, to).apply {
+        val progressAnimator = ValueAnimator.ofInt(from, to).apply {
             duration = 1500
             addUpdateListener {
                 tempGauge.progress = it.animatedValue as Int
             }
-            start()
         }
+        progressAnimator.start()
 
-        ValueAnimator.ofObject(
+        val colorAnimator = ValueAnimator.ofObject(
             ArgbEvaluator(),
             getColorForTemp(from),
             getColorForTemp(to)
@@ -257,8 +182,8 @@ class MainActivity : AppCompatActivity() {
                 tempGauge.setIndicatorColor(color)
                 tvTemperature.setShadowLayer(8f, 0f, 0f, color)
             }
-            start()
         }
+        colorAnimator.start()
 
         tvTemperature.text = "$displayTemp$unit"
     }
@@ -274,13 +199,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /* =======================================================
-       CHART
-     ======================================================= */
-
     private val chartUpdater = object : Runnable {
         override fun run() {
-
             val newValue = Random.nextInt(20, 35).toFloat()
             temperatureEntries.add(Entry(chartTime, newValue))
             chartTime += 1f
@@ -300,6 +220,10 @@ class MainActivity : AppCompatActivity() {
             }
 
             lineChart.data = LineData(dataSet)
+
+            lineChart.legend.textColor =
+                ContextCompat.getColor(this@MainActivity, android.R.color.white)
+
             lineChart.invalidate()
 
             handler.postDelayed(this, chartUpdateInterval)
