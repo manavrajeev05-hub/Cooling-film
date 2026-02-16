@@ -1,7 +1,16 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
+
+    <!-- Base application theme for night mode -->
     <style name="Base.Theme.CoolingFilmMonitor" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+        <item name="colorPrimary">@color/primary_blue</item>
+        <item name="colorOnPrimary">@color/text_white</item>
+        <item name="android:windowBackground">@color/dashboard_bg</item>
+
+        <!-- Same professional settings as day mode -->
+        <item name="windowNoTitle">true</item>
+        <item name="windowActionBar">false</item>
+        <item name="android:statusBarColor">@color/dashboard_bg</item>
     </style>
+
+    <style name="Theme.CoolingFilmMonitor" parent="Base.Theme.CoolingFilmMonitor" />
 </resources>

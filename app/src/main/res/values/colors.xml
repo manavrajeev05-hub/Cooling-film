@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <color name="primary_blue">#A5F2F3</color>          <!-- Active buttons, gauge -->
+    <color name="dashboard_bg">#0B0E14</color>         <!-- Dark background -->
+    <color name="background_dark">#121212</color>      <!-- Fallback dark background -->
+    <color name="card_dark">#1E1E1E</color>           <!-- Card backgrounds -->
+    <color name="text_white">#FFFFFF</color>          <!-- Text on dark bg -->
+    <color name="text_secondary">#9CA3AF</color>      <!-- Secondary text -->
+    <color name="status_green">#4ADE80</color>        <!-- Connected status -->
+    <color name="status_red">#F87171</color>
+    <color name="text_black">#000000</color>
+    <color name="warning_yellow">#FFC107</color>
+    <color name="alert_red">#F44336</color>
+    <color name="status_blue">#2196F3</color>
+
+    <!-- Disconnected / heating -->
 </resources>
+
