@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Enable Alert Switch -->
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchAlert"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/temperature_alert"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Threshold Title -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/temp_threshold"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Threshold Input -->
+        <EditText
+            android:id="@+id/etThreshold"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:autofillHints="temperature"
+            android:hint="@string/enter_temperature"
+            android:inputType="number"
+            android:minHeight="48dp" />
+
+        <!-- Unit Switch -->
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchUnit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/use_fahrenheit"
+            android:layout_marginTop="24dp" />
+
+        <!-- Reset Button -->
+        <Button
+            android:id="@+id/btnReset"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/reset_data"
+            android:textColor="@android:color/black"
+            android:layout_marginTop="24dp" />
+
+        <!-- Save Button -->
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/save"
+            android:textColor="@android:color/black"
+            android:layout_marginTop="16dp" />
+
+        <!-- About Section -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="@string/about_app"
+            android:textStyle="italic" />
+
+    </LinearLayout>
+</ScrollView>

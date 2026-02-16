@@ -1,4 +1,24 @@
 <resources>
-    <string name="app_name">CoolingFilmMonitor</string>
-    <string name="temp_label">Temperature: 00.0 °C</string>
+    <string name="app_name">Cooling Monitor</string>
+    <string name="connect">Connect</string>
+    <string name="connected">Connected to Film_v</string>
+    <string name="disconnected">Disconnected</string>
+    <string name="temperature_placeholder">%1$d°C</string>
+    <string name="cooling_stable">Cooling Stable</string>
+    <string name="heating">Heating</string>
+    <string name="log_data">Log Data</string>
+    <string name="settings">Settings</string>
+
+    <!-- For dynamic text -->
+    <string name="data_logged">Data Logged at %1$d°C</string>
+    <string name="min_max">Min: %1$d°C | Max: %2$d°C</string>
+
+    <string name="temp_threshold">Temperature Alert Threshold</string>
+    <string name="enter_temperature">Enter temperature</string>
+    <string name="use_fahrenheit">Use Fahrenheit</string>
+    <string name="reset_data">Reset Min/Max Data</string>
+    <string name="save">Save</string>
+    <string name="about_app">Cooling Film Monitor v1.0</string>
+    <string name="monitoring">Monitoring</string>
+    <string name="temperature_alert">Enable Temperature Alert</string>
 </resources>
